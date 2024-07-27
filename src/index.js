@@ -15,6 +15,11 @@ client.on('ready', (c) => {
 });
 
 client.on(`messageCreate`, (msg) => {
+    if (msg.author.bot) {
+        return;
+    }
+
+
     if (msg.content === 'Hello') {
         msg.reply('Hello! How are you!');
     }
