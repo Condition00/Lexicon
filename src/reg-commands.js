@@ -1,14 +1,18 @@
 require('dotenv').config();
-const { REST, Routes } = require(`discord.js`);
+const { REST, Routes, ApplicationCommandOptionType } = require(`discord.js`);
 
 const commands = [
     {
-        name: `hey`,
-        description: `replies with hey`,
-    },
-    {
-        name: `help`,
-        description: `Help command`,
+        name: 'dictionary',
+        description: 'Searches the dictionary for the word given by user',
+        options: [
+            {
+                name: 'word',
+                description: 'word to search the dictionary for.',
+                type: ApplicationCommandOptionType.String,
+                required: true,
+            },
+        ],
     },
 ];
 
@@ -16,16 +20,15 @@ const rest = new REST({ version: '10' }).setToken(process.env.TOKEN);
 
 (async () => {
     try {
-        console.log(`Registering slash commands...`);
-
+        console.log('Started refreshing application (/) commands.');
 
         await rest.put(
-            Routes.applicationGuildCommands(process.env.BOT_ID, process.env.GUILD_ID),
-            { body: commands }
+            Routes.applicationCommands(process.env.BOT_ID),
+            { body: commands },
         );
 
-      console.log(`Slash commands were registered successfully!`)  
-    } catch (error){
-        console.log(`There was an error: ${error}`);
+        console.log('Successfully reloaded application (/) commands.');
+    } catch (error) {
+        console.error(error);
     }
 })();

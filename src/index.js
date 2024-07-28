@@ -14,13 +14,27 @@ client.on('ready', (c) => {
     console.log(`✅ ${c.user.tag} is online.`)
 });
 
-client.on('interactionCreate', (interaction) =>{
+client.on('interactionCreate', async interaction => {
     if (!interaction.isChatInputCommand()) return;
 
-    if (interaction.commandName === 'hey'){
-        interaction.reply('Hi! How was your day!')
+    if (interaction.commandName === 'dictionary') {
+        const word = interaction.options.getString('word');
+
+        try {
+            const response = await fetch(`https://api.dictionaryapi.dev/api/v2/entries/en/${word}`);
+            const data = await response.json();
+
+            if (response.ok) {
+                const definition = data[0].meanings[0].definitions[0].definition;
+                await interaction.reply(`**${word}**: ${definition}`);
+            } else {
+                await interaction.reply(`Sorry, I couldn't find the definition for **${word}**.`);
+            }
+        } catch (error) {
+            console.error('Error fetching the definition:', error);
+            await interaction.reply('There was an error fetching the definition. Please try again later.');
+        }
     }
 });
-
 
 client.login(process.env.TOKEN);
