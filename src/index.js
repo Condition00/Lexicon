@@ -1,4 +1,4 @@
-const { Client, IntentsBitField, Message } = require('discord.js');
+const { Client, IntentsBitField, Message, EmbedBuilder } = require('discord.js');
 require('dotenv').config();
 
 const client = new Client({
@@ -19,14 +19,17 @@ client.on('interactionCreate', async interaction => {
 
     if (interaction.commandName === 'dictionary') {
         const word = interaction.options.getString('word');
-
+        
         try {
             const response = await fetch(`https://api.dictionaryapi.dev/api/v2/entries/en/${word}`);
             const data = await response.json();
 
             if (response.ok) {
                 const definition = data[0].meanings[0].definitions[0].definition;
-                await interaction.reply(`**${word}**: ${definition}`);
+                const embed = new EmbedBuilder()
+                .setTitle(`**${word}**`)
+                .setDescription(`**Definition:**\n*${definition}*\n`)
+                interaction.reply({embeds: [embed] });
             } else {
                 await interaction.reply(`Sorry, I couldn't find the definition for **${word}**.`);
             }
