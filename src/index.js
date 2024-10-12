@@ -1,7 +1,10 @@
 const { Client, IntentsBitField, EmbedBuilder } = require('discord.js');
 require('dotenv').config();
 const cron = require('node-cron');
-const fetch = require('node-fetch');
+async function fetchWord() {
+    const fetch = (await import('node-fetch')).default;
+    // Now you can use `fetch` here.
+}
 
 
 const client = new Client({
@@ -180,6 +183,10 @@ client.on('interactionCreate', async interaction => {
             console.error('Error fetching the word of the day:', error);
             await interaction.editReply({ content: '❌ There was an error fetching the word of the day. Please try again later.' });
         }
+        if (!response.ok) {
+            throw new Error(`Failed to fetch Word of the Day: ${data.message}`);
+        }
+        
     }
 });
 
