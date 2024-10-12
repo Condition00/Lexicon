@@ -1,6 +1,8 @@
 const { Client, IntentsBitField, EmbedBuilder } = require('discord.js');
 require('dotenv').config();
 const cron = require('node-cron');
+const fetch = require('node-fetch');
+
 
 const client = new Client({
     intents: [
@@ -13,6 +15,67 @@ const client = new Client({
 
 client.on('ready', (c) => {
     console.log(`✅ ${c.user.tag} is online.`);
+});
+
+// Fetch Word of the Day from the Free Dictionary API
+async function fetchWordOfTheDay() {
+    try {
+        const response = await fetch('https://api.dictionaryapi.dev/api/v2/entries/en/example'); // Use 'example' as a placeholder word
+        const data = await response.json();
+
+        if (!response.ok) {
+            throw new Error(`Failed to fetch Word of the Day: ${data.message}`);
+        }
+
+        // Extract word data
+        const wordData = {
+            word: data[0].word,
+            definition: data[0].meanings.length > 0 ? data[0].meanings[0].definitions[0].definition : 'No definition available.',
+            partOfSpeech: data[0].meanings.length > 0 ? data[0].meanings[0].partOfSpeech : 'N/A',
+            example: data[0].meanings[0].definitions[0].example || 'No example available.',
+            pronunciation: data[0].phonetics.length > 0 ? data[0].phonetics[0].text : 'N/A',
+        };
+
+        return wordData;
+    } catch (error) {
+        console.error('Error fetching Word of the Day:', error);
+        throw error;
+    }
+}
+
+// Create an embed for the Word of the Day
+function createEmbedForWord(wordData) {
+    const embed = new EmbedBuilder()
+        .setColor(0x1D82B6)
+        .setTitle(`📚 Word of the Day: **${wordData.word}**`)
+        .setDescription(`**${wordData.definition}**`)
+        .addFields(
+            { name: 'Part of Speech', value: wordData.partOfSpeech || 'N/A', inline: true },
+            { name: 'Phonetics', value: wordData.pronunciation || 'N/A', inline: true },
+            { name: 'Example', value: wordData.example || 'No example available.', inline: false }
+        )
+        .setThumbnail('https://cdn.pixabay.com/animation/2023/06/13/15/13/15-13-14-651_512.gif')
+        .setFooter({ text: 'Built by Anant Kavuru using Discord.js', iconURL: 'https://i.imgur.com/AfFp7pu.png' })
+        .setTimestamp();
+    return embed;
+}
+
+client.on('ready', (c) => {
+    console.log(`✅ ${c.user.tag} is online.`);
+
+    // Schedule to post Word of the Day every day at 9 AM (server time)
+    cron.schedule('0 9 * * *', async () => {
+        const channel = client.channels.cache.get(process.env.CHNLID); // Make sure to set CHNLID in your .env
+        if (channel) {
+            try {
+                const wordData = await fetchWordOfTheDay();
+                const embed = createEmbedForWord(wordData);
+                await channel.send({ embeds: [embed] });
+            } catch (error) {
+                console.error('Error fetching Word of the Day:', error);
+            }
+        }
+    });
 });
 
 client.on('interactionCreate', async interaction => {
