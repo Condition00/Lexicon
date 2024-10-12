@@ -1,5 +1,6 @@
 const { Client, IntentsBitField, EmbedBuilder } = require('discord.js');
 require('dotenv').config();
+const cron = require('node-cron');
 
 const client = new Client({
     intents: [
@@ -78,6 +79,43 @@ client.on('interactionCreate', async interaction => {
             } catch (replyError) {
                 console.error('Error sending the error message:', replyError);
             }
+        }
+    }
+});
+
+client.on('ready', (c) => {
+    console.log(`✅ ${c.user.tag} is online.`);
+
+    // Schedule to post Word of the Day every day at 9 AM (server time)
+    cron.schedule('0 9 * * *', async () => {
+        const channel = client.channels.cache.get(process.env.CHNLID);
+        if (channel) {
+            try {
+                const wordData = await fetchWordOfTheDay();
+                const embed = createEmbedForWord(wordData);
+                await channel.send({ embeds: [embed] });
+            } catch (error) {
+                console.error('Error fetching Word of the Day:', error);
+            }
+        }
+    });
+});
+
+client.on('interactionCreate', async interaction => {
+    if (!interaction.isChatInputCommand()) return;
+
+    if (interaction.commandName === 'wordoftheday') {
+        try {
+            // Defer reply for long operations
+            await interaction.deferReply();
+
+            const wordData = await fetchWordOfTheDay();
+            const embed = createEmbedForWord(wordData);
+
+            await interaction.editReply({ embeds: [embed] });
+        } catch (error) {
+            console.error('Error fetching the word of the day:', error);
+            await interaction.editReply({ content: '❌ There was an error fetching the word of the day. Please try again later.' });
         }
     }
 });

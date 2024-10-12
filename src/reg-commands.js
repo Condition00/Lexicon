@@ -1,5 +1,5 @@
 require('dotenv').config();
-const { REST, Routes, ApplicationCommandOptionType } = require(`discord.js`);
+const { REST, Routes, ApplicationCommandOptionType } = require('discord.js');
 
 const commands = [
     {
@@ -14,6 +14,10 @@ const commands = [
             },
         ],
     },
+    {
+        name: 'wordoftheday',
+        description: 'Gets the Word of the Day with definition and example.',
+    },
 ];
 
 const rest = new REST({ version: '10' }).setToken(process.env.TOKEN);
@@ -24,7 +28,7 @@ const rest = new REST({ version: '10' }).setToken(process.env.TOKEN);
 
         await rest.put(
             Routes.applicationCommands(process.env.BOT_ID),
-            { body: commands },
+            { body: commands }
         );
 
         console.log('Successfully reloaded application (/) commands.');
