@@ -1,4 +1,4 @@
-# Lexicon - Discord Word of the Day Bot
+# Lexicon - Discord Dictionary Bot
 
 Lexicon is a Discord bot that fetches the Word of the Day from the Wordnik API and provides dictionary definitions for words. It's built using [Discord.js](https://discord.js.org/) and can send daily updates to a channel at a specific time.
 
