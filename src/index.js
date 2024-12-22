@@ -2,7 +2,6 @@ const { Client, IntentsBitField, EmbedBuilder } = require('discord.js');
 require('dotenv').config();
 const cron = require('node-cron');
 
-// Initialize the client
 const client = new Client({
     intents: [
         IntentsBitField.Flags.Guilds,
@@ -16,7 +15,6 @@ client.on('ready', (c) => {
     console.log(`✅ ${c.user.tag} is online.`);
 });
 
-// Fetch the Word of the Day from Wordnik API
 async function fetchWordOfTheDay() {
     try {
         const fetch = (await import('node-fetch')).default;
@@ -57,7 +55,7 @@ function createEmbedForWord(wordData) {
         .setTimestamp();
 }
 
-// Schedule Word of the Day every day at 9 AM (server time)
+//  word fetching scheduler 
 cron.schedule('0 9 * * *', async () => {
     const channel = client.channels.cache.get(process.env.CHNLID); 
     if (channel) {
@@ -71,13 +69,12 @@ cron.schedule('0 9 * * *', async () => {
     }
 });
 
-// Single event listener for all interactions
+// even listener
 client.on('interactionCreate', async (interaction) => {
     if (!interaction.isChatInputCommand()) return;
 
     const { commandName } = interaction;
 
-    // Word of the Day Command
     if (commandName === 'wordoftheday') {
         try {
             await interaction.deferReply();
@@ -90,7 +87,6 @@ client.on('interactionCreate', async (interaction) => {
         }
     }
 
-    // Dictionary Command
     if (commandName === 'dictionary') {
         const word = interaction.options.getString('word');
 
@@ -180,7 +176,7 @@ client.on('interactionCreate', async (interaction) => {
 
 
 
-// Login the bot
+// bot login 
 client.login(process.env.TOKEN);
 
 
