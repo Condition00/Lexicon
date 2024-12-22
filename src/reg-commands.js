@@ -18,6 +18,19 @@ const commands = [
         name: 'wordoftheday',
         description: 'Gets the Word of the Day with definition and example.',
     },
+
+    {
+        name: 'suggest',
+        description: 'Suggests words based on a given meaning or explanation.',
+        options: [
+            {
+                name: 'meaning',
+                description: 'The meaning or explanation to get word suggestions for.',
+                type: ApplicationCommandOptionType.String,
+                required: true,
+            },
+        ],
+    }
 ];
 
 const rest = new REST({ version: '10' }).setToken(process.env.TOKEN);

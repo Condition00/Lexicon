@@ -41,7 +41,7 @@ async function fetchWordOfTheDay() {
     }
 }
 
-// Create an embed for the Word of the Day
+
 function createEmbedForWord(wordData) {
     return new EmbedBuilder()
         .setColor(0x1D82B6)
@@ -53,7 +53,7 @@ function createEmbedForWord(wordData) {
             { name: 'Example', value: wordData.example || 'No example available.', inline: false }
         )
         .setThumbnail('https://cdn.pixabay.com/animation/2023/06/13/15/13/15-13-14-651_512.gif')
-        .setFooter({ text: 'Built by Anant Kavuru using Discord.js', iconURL: 'https://i.imgur.com/AfFp7pu.png' })
+        .setFooter({ text: 'Built by Zero using Discord.js', iconURL: 'https://i.imgur.com/AfFp7pu.png' })
         .setTimestamp();
 }
 
@@ -106,9 +106,9 @@ client.on('interactionCreate', async (interaction) => {
             const data = await response.json();
 
             if (response.ok && data.length > 0) {
-                const definitions = data[0].meanings.flatMap(meaning => meaning.definitions);
+                const definitions = data[0].meaning.flatMap(meaning => meaning.definitions);
                 const example = definitions[0]?.example || 'No example available.';
-                const partOfSpeech = data[0].meanings[0]?.partOfSpeech || 'N/A';
+                const partOfSpeech = data[0].meaning[0]?.partOfSpeech || 'N/A';
                 const phonetics = data[0].phonetics[0]?.text || 'N/A';
                 const audio = data[0].phonetics[0]?.audio || null;
                 const synonyms = definitions[0]?.synonyms?.join(', ') || 'No synonyms available.';
@@ -140,7 +140,45 @@ client.on('interactionCreate', async (interaction) => {
             await interaction.editReply({ content: '❌ There was an error fetching the definition. Please try again later.' });
         }
     }
+
+    if (commandName === 'suggest') {
+        const meaning= interaction.options.getString('meaning');
+        console.log('received meaning:', meaning);
+
+        if (!meaning || meaning.trim() === '') {
+            return interaction.reply({ content: '❌ please provide a valid meaning ', ephemeral: true });
+        }
+
+        try {
+            await interaction.deferReply();
+    
+            const fetch = (await import('node-fetch')).default;
+            const response = await fetch(`https://api.datamuse.com/words?ml=${encodeURIComponent(meaning)}`);
+            const data = await response.json();
+    
+            if (response.ok && data.length > 0) {
+                const suggestions = data.slice(0, 5).map((word) => word.word).join(', ');
+    
+                const embed = new EmbedBuilder()
+                    .setColor(0x1D82B6)
+                    .setTitle('🔍 Word Suggestions')
+                    .setDescription(`Based on the meaning: **${meaning}**`)
+                    .addFields({ name: 'Suggestions', value: suggestions, inline: false })
+                    .setFooter({ text: 'Built by Anant Kavuru using Discord.js', iconURL: 'https://i.imgur.com/AfFp7pu.png' })
+                    .setTimestamp();
+    
+                await interaction.editReply({ embeds: [embed] });
+            } else {
+                await interaction.editReply({ content: `❌ Sorry, no suggestions found for **${meaning}**.` });
+            }
+        } catch (error) {
+            console.error('Error fetching word suggestions:', error);
+            await interaction.editReply({ content: '❌ There was an error fetching word suggestions. Please try again later.' });
+        }
+    }
 });
+
+
 
 // Login the bot
 client.login(process.env.TOKEN);
