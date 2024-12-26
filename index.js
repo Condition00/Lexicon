@@ -172,9 +172,56 @@ client.on('interactionCreate', async (interaction) => {
             await interaction.editReply({ content: '❌ There was an error fetching word suggestions. Please try again later.' });
         }
     }
-});
+    if (commandName === 'guessword') {
+        try {
+            await interaction.deferReply();
+    
+            // Fetch a random word
+            const fetch = (await import('node-fetch')).default;
+            const apiKey = process.env.WORDNIK_API_KEY;
+            const wordResponse = await fetch(`https://api.wordnik.com/v4/words.json/randomWord?api_key=${apiKey}`);
+            const wordData = await wordResponse.json();
+    
+            // Fetch the definition of the random word
+            const definitionResponse = await fetch(`https://api.wordnik.com/v4/word.json/${wordData.word}/definitions?api_key=${apiKey}`);
+            const definitionData = await definitionResponse.json();
+    
+            if (!definitionData || definitionData.length === 0) {
+                return interaction.editReply({ content: '❌ Could not fetch a valid definition for the word. Please try again.' });
+            }
+    
+            const definition = definitionData[0]?.text || 'No definition available.';
+    
+            // Generate incorrect options
+            const similarResponse = await fetch(`https://api.datamuse.com/words?ml=${encodeURIComponent(definition)}`);
+            const similarWords = await similarResponse.json();
+    
+            if (!similarWords || similarWords.length < 2) {
+                return interaction.editReply({ content: '❌ Could not generate enough options for the game. Try again later.' });
+            }
+    
+            // Prepare options (correct and incorrect) 
+            const correctWord = wordData.word;
+            const incorrectOptions = similarWords.slice(0, 2).map((word) => word.word);
+            const shuffledOptions = [correctWord, ...incorrectOptions].sort(() => Math.random() - 0.5);
 
-
+            const embed = new EmbedBuilder()
+                .setColor(0x1D82B6)
+                .setTitle('🎮 Guess the Word Game')
+                .setDescription(`Which word matches the following definition?\n\n**${definition}**`)
+                .addFields(
+                    shuffledOptions.map((option, index) => ({ name: `Option ${index + 1}`, value: option, inline: false }))
+                )
+                .setFooter({ text: 'Built by Anant Kavuru using Discord.js', iconURL: 'https://i.imgur.com/AfFp7pu.png' })
+                .setTimestamp();
+    
+            await interaction.editReply({ embeds: [embed] });
+        } catch (error) {
+            console.error('Error fetching guessword data:', error);
+            await interaction.editReply({ content: '❌ There was an error processing the game. Please try again later.' });
+        }
+    }
+}); 
 
 // bot login 
 client.login(process.env.TOKEN);

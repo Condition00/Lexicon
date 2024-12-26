@@ -30,6 +30,10 @@ const commands = [
                 required: true,
             },
         ],
+    },
+    {
+        name: 'guessword',
+        description: 'Guess the word based on the given clue.',
     }
 ];
 
