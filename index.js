@@ -1,4 +1,10 @@
 const { Client, IntentsBitField, EmbedBuilder } = require('discord.js');
+const {
+    ActionRowBuilder,
+    ButtonBuilder,
+    ButtonStyle,
+    ComponentType
+} = require('discord.js');
 require('dotenv').config();
 const cron = require('node-cron');
 
@@ -74,6 +80,7 @@ client.on('interactionCreate', async (interaction) => {
     if (!interaction.isChatInputCommand()) return;
 
     const { commandName } = interaction;
+    console.log('Received command:', commandName);
 
     if (commandName === 'wordoftheday') {
         try {
@@ -172,17 +179,18 @@ client.on('interactionCreate', async (interaction) => {
             await interaction.editReply({ content: '❌ There was an error fetching word suggestions. Please try again later.' });
         }
     }
-    if (commandName === 'guessword') {
+        if (commandName === 'guessword') {
         try {
             await interaction.deferReply();
 
-            // Fetch a random word
             const fetch = (await import('node-fetch')).default;
             const apiKey = process.env.WORDNIK_API_KEY;
+
+            // Fetching a random word
             const wordResponse = await fetch(`https://api.wordnik.com/v4/words.json/randomWord?api_key=${apiKey}`);
             const wordData = await wordResponse.json();
 
-            // Fetch the definition of the random word
+            // Fetch its definition
             const definitionResponse = await fetch(`https://api.wordnik.com/v4/word.json/${wordData.word}/definitions?api_key=${apiKey}`);
             const definitionData = await definitionResponse.json();
 
@@ -190,9 +198,10 @@ client.on('interactionCreate', async (interaction) => {
                 return interaction.editReply({ content: '❌ Could not fetch a valid definition for the word. Please try again.' });
             }
 
-            const definition = definitionData[0]?.text || 'No definition available.';
+            const rawDefinition = definitionData[0]?.text || 'No definition available.';
+            const definition = rawDefinition.replace(/<[^>]*>/g, '');
 
-            // Generate incorrect options
+            // Generate similar words
             const similarResponse = await fetch(`https://api.datamuse.com/words?ml=${encodeURIComponent(definition)}`);
             const similarWords = await similarResponse.json();
 
@@ -200,28 +209,69 @@ client.on('interactionCreate', async (interaction) => {
                 return interaction.editReply({ content: '❌ Could not generate enough options for the game. Try again later.' });
             }
 
-            // Prepare options (correct and incorrect)
             const correctWord = wordData.word;
-            const incorrectOptions = similarWords.slice(0, 2).map((word) => word.word);
-            const shuffledOptions = [correctWord, ...incorrectOptions].sort(() => Math.random() - 0.5);
+            const incorrectOptions = similarWords.slice(0, 2).map(word => word.word);
+            const allOptions = [correctWord, ...incorrectOptions].sort(() => Math.random() - 0.5);
 
+            // Embed for the game
             const embed = new EmbedBuilder()
                 .setColor(0x1D82B6)
                 .setTitle('🎮 Guess the Word Game')
                 .setDescription(`Which word matches the following definition?\n\n**${definition}**`)
                 .addFields(
-                    shuffledOptions.map((option, index) => ({ name: `Option ${index + 1}`, value: option, inline: false }))
+                    allOptions.map((opt, idx) => ({
+                        name: `Option ${idx + 1}`,
+                        value: opt,
+                        inline: false,
+                    }))
                 )
                 .setFooter({ text: 'Built by Zero using Discord.js', iconURL: 'https://i.imgur.com/AfFp7pu.png' })
                 .setTimestamp();
 
-            await interaction.editReply({ embeds: [embed] });
+            // Buttons
+            const buttons = new ActionRowBuilder().addComponents(
+                allOptions.map((opt, idx) =>
+                    new ButtonBuilder()
+                        .setCustomId(`guessword_option_${idx}`)
+                        .setLabel((idx + 1).toString())
+                        .setStyle(ButtonStyle.Primary)
+                )
+            );
+
+            const reply = await interaction.editReply({ embeds: [embed], components: [buttons] });
+
+            // Collect interaction
+            const collector = reply.createMessageComponentCollector({
+                componentType: ComponentType.Button,
+                time: 15000,
+                max: 1,
+            });
+
+            collector.on('collect', async (btnInteraction) => {
+                const chosenIndex = parseInt(btnInteraction.customId.split('_').pop(), 10);
+                const chosenWord = allOptions[chosenIndex];
+
+                const isCorrect = chosenWord.toLowerCase() === correctWord.toLowerCase();
+
+                await btnInteraction.reply({
+                    content: isCorrect
+                        ? `✅ Correct! The word was **${correctWord}**.`
+                        : `❌ Wrong! You chose **${chosenWord}** but the correct word was **${correctWord}**.`,
+                    ephemeral: true,
+                });
+            });
+
+            collector.on('end', collected => {
+                if (collected.size === 0) {
+                    interaction.followUp({ content: '⏰ Time’s up! No one answered.', ephemeral: true });
+                }
+            });
         } catch (error) {
-            console.error('Error fetching guessword data:', error);
-            await interaction.editReply({ content: '❌ There was an error processing the game. Please try again later.' });
+            console.error('Error in guessword command:', error);
+            await interaction.editReply({ content: '❌ Error occurred while running the game. Please try again later.' });
         }
     }
-});
+    });
 
 // bot login
 client.login(process.env.TOKEN);
