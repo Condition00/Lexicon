@@ -55,9 +55,9 @@ function createEmbedForWord(wordData) {
         .setTimestamp();
 }
 
-//  word fetching scheduler 
+//  word fetching scheduler
 cron.schedule('0 9 * * *', async () => {
-    const channel = client.channels.cache.get(process.env.CHNLID); 
+    const channel = client.channels.cache.get(process.env.CHNLID);
     if (channel) {
         try {
             const wordData = await fetchWordOfTheDay();
@@ -69,7 +69,7 @@ cron.schedule('0 9 * * *', async () => {
     }
 });
 
-// even listener
+// event listener
 client.on('interactionCreate', async (interaction) => {
     if (!interaction.isChatInputCommand()) return;
 
@@ -102,9 +102,9 @@ client.on('interactionCreate', async (interaction) => {
             const data = await response.json();
 
             if (response.ok && data.length > 0) {
-                const definitions = data[0].meaning.flatMap(meaning => meaning.definitions);
+                const definitions = data[0].meanings.flatMap(meaning => meaning.definitions);
                 const example = definitions[0]?.example || 'No example available.';
-                const partOfSpeech = data[0].meaning[0]?.partOfSpeech || 'N/A';
+                const partOfSpeech = data[0].meanings[0]?.partOfSpeech || 'N/A';
                 const phonetics = data[0].phonetics[0]?.text || 'N/A';
                 const audio = data[0].phonetics[0]?.audio || null;
                 const synonyms = definitions[0]?.synonyms?.join(', ') || 'No synonyms available.';
@@ -120,7 +120,7 @@ client.on('interactionCreate', async (interaction) => {
                         { name: 'Synonyms', value: synonyms, inline: false },
                         { name: 'Example', value: example, inline: false }
                     )
-                    .setFooter({ text: 'Built by Anant Kavuru using Discord.js', iconURL: 'https://i.imgur.com/AfFp7pu.png' })
+                    .setFooter({ text: 'Built by Zero using Discord.js', iconURL: 'https://i.imgur.com/AfFp7pu.png' })
                     .setTimestamp();
 
                 if (audio) {
@@ -147,14 +147,14 @@ client.on('interactionCreate', async (interaction) => {
 
         try {
             await interaction.deferReply();
-    
+
             const fetch = (await import('node-fetch')).default;
             const response = await fetch(`https://api.datamuse.com/words?ml=${encodeURIComponent(meaning)}`);
             const data = await response.json();
-    
+
             if (response.ok && data.length > 0) {
                 const suggestions = data.slice(0, 5).map((word) => word.word).join(', ');
-    
+
                 const embed = new EmbedBuilder()
                     .setColor(0x1D82B6)
                     .setTitle('🔍 Word Suggestions')
@@ -162,7 +162,7 @@ client.on('interactionCreate', async (interaction) => {
                     .addFields({ name: 'Suggestions', value: suggestions, inline: false })
                     .setFooter({ text: 'Built by Anant Kavuru using Discord.js', iconURL: 'https://i.imgur.com/AfFp7pu.png' })
                     .setTimestamp();
-    
+
                 await interaction.editReply({ embeds: [embed] });
             } else {
                 await interaction.editReply({ content: `❌ Sorry, no suggestions found for **${meaning}**.` });
@@ -175,32 +175,32 @@ client.on('interactionCreate', async (interaction) => {
     if (commandName === 'guessword') {
         try {
             await interaction.deferReply();
-    
+
             // Fetch a random word
             const fetch = (await import('node-fetch')).default;
             const apiKey = process.env.WORDNIK_API_KEY;
             const wordResponse = await fetch(`https://api.wordnik.com/v4/words.json/randomWord?api_key=${apiKey}`);
             const wordData = await wordResponse.json();
-    
+
             // Fetch the definition of the random word
             const definitionResponse = await fetch(`https://api.wordnik.com/v4/word.json/${wordData.word}/definitions?api_key=${apiKey}`);
             const definitionData = await definitionResponse.json();
-    
+
             if (!definitionData || definitionData.length === 0) {
                 return interaction.editReply({ content: '❌ Could not fetch a valid definition for the word. Please try again.' });
             }
-    
+
             const definition = definitionData[0]?.text || 'No definition available.';
-    
+
             // Generate incorrect options
             const similarResponse = await fetch(`https://api.datamuse.com/words?ml=${encodeURIComponent(definition)}`);
             const similarWords = await similarResponse.json();
-    
+
             if (!similarWords || similarWords.length < 2) {
                 return interaction.editReply({ content: '❌ Could not generate enough options for the game. Try again later.' });
             }
-    
-            // Prepare options (correct and incorrect) 
+
+            // Prepare options (correct and incorrect)
             const correctWord = wordData.word;
             const incorrectOptions = similarWords.slice(0, 2).map((word) => word.word);
             const shuffledOptions = [correctWord, ...incorrectOptions].sort(() => Math.random() - 0.5);
@@ -212,18 +212,18 @@ client.on('interactionCreate', async (interaction) => {
                 .addFields(
                     shuffledOptions.map((option, index) => ({ name: `Option ${index + 1}`, value: option, inline: false }))
                 )
-                .setFooter({ text: 'Built by Anant Kavuru using Discord.js', iconURL: 'https://i.imgur.com/AfFp7pu.png' })
+                .setFooter({ text: 'Built by Zero using Discord.js', iconURL: 'https://i.imgur.com/AfFp7pu.png' })
                 .setTimestamp();
-    
+
             await interaction.editReply({ embeds: [embed] });
         } catch (error) {
             console.error('Error fetching guessword data:', error);
             await interaction.editReply({ content: '❌ There was an error processing the game. Please try again later.' });
         }
     }
-}); 
+});
 
-// bot login 
+// bot login
 client.login(process.env.TOKEN);
 
 
