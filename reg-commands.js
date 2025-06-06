@@ -34,6 +34,18 @@ const commands = [
     {
         name: 'guessword',
         description: 'Guess the word based on the given clue.',
+    },
+    {
+        name: 'pronounce',
+        description: 'Pronounces the given word.',
+        options: [
+            {
+                name: 'word',
+                description: 'The word to pronounce.',
+                type: ApplicationCommandOptionType.String,
+                required: true,
+            },
+        ],
     }
 ];
 
