@@ -105,34 +105,47 @@ client.on('interactionCreate', async (interaction) => {
             await interaction.deferReply();
 
             const fetch = (await import('node-fetch')).default;
-            const response = await fetch(`https://api.dictionaryapi.dev/api/v2/entries/en/${word}`);
-            const data = await response.json();
+            const apiKey = process.env.WORDNIK_API_KEY;
 
-            if (response.ok && data.length > 0) {
-                const definitions = data[0].meanings.flatMap(meaning => meaning.definitions);
-                const example = definitions[0]?.example || 'No example available.';
-                const partOfSpeech = data[0].meanings[0]?.partOfSpeech || 'N/A';
-                const phonetics = data[0].phonetics[0]?.text || 'N/A';
-                const audio = data[0].phonetics[0]?.audio || null;
-                const synonyms = definitions[0]?.synonyms?.join(', ') || 'No synonyms available.';
+            // Fetching definition from Wordnik
+            const definitionResponse = await fetch(`https://api.wordnik.com/v4/word.json/${word}/definitions?limit=3&api_key=${apiKey}`);
+            const definitionData = await definitionResponse.json();
+
+            // examples fetching
+            const exampleResponse = await fetch(`https://api.wordnik.com/v4/word.json/${word}/examples?limit=1&api_key=${apiKey}`);
+            const exampleData = await exampleResponse.json();
+
+            // pronunciation fetching
+            const pronunciationResponse = await fetch(`https://api.wordnik.com/v4/word.json/${word}/pronunciations?limit=1&api_key=${apiKey}`);
+            const pronunciationData = await pronunciationResponse.json();
+
+            // Synonyms fetching
+            const relatedResponse = await fetch(`https://api.wordnik.com/v4/word.json/${word}/relatedWords?relationshipTypes=synonym&limitPerRelationshipType=5&api_key=${apiKey}`);
+            const relatedData = await relatedResponse.json();
+
+            if (definitionData && definitionData.length > 0) {
+                const definition = definitionData[0]?.text?.replace(/<[^>]*>/g, '') || 'No definition available.';
+                const partOfSpeech = definitionData[0]?.partOfSpeech || 'N/A';
+                const example = exampleData?.examples?.[0]?.text?.replace(/<[^>]*>/g, '') || 'No example available.';
+                const pronunciation = pronunciationData[0]?.raw || 'N/A';
+                //checking is relatedData is an array and has elements cuz sometimes it can be empty and The error happens because when the API doesn't return any synonyms, relatedData might be an empty array or a different data structure that doesn't have the find() method. 
+                const synonyms = Array.isArray(relatedData) && relatedData.length > 0
+                    ? (relatedData.find(r => r.relationshipType === 'synonym')?.words?.join(', ') || 'No synonyms available.')
+                    : 'No synonyms available.';
 
                 const embed = new EmbedBuilder()
                     .setColor(0x1D82B6)
                     .setTitle(`📚 Definition of **${word}**`)
-                    .setDescription(`**${definitions[0]?.definition || 'No definition available.'}**`)
+                    .setDescription(`**${definition}**`)
                     .setThumbnail('https://cdn.pixabay.com/animation/2023/06/13/15/13/15-13-14-651_512.gif')
                     .addFields(
                         { name: 'Part of Speech', value: partOfSpeech, inline: true },
-                        { name: 'Phonetics', value: phonetics, inline: true },
+                        { name: 'Phonetics', value: pronunciation, inline: true },
                         { name: 'Synonyms', value: synonyms, inline: false },
                         { name: 'Example', value: example, inline: false }
                     )
                     .setFooter({ text: 'Built by Zero using Discord.js', iconURL: 'https://i.imgur.com/AfFp7pu.png' })
                     .setTimestamp();
-
-                if (audio) {
-                    embed.addFields({ name: 'Audio Pronunciation 🔊', value: `[Listen here](${audio})`, inline: false });
-                }
 
                 await interaction.editReply({ embeds: [embed] });
             } else {
@@ -186,11 +199,11 @@ client.on('interactionCreate', async (interaction) => {
             const fetch = (await import('node-fetch')).default;
             const apiKey = process.env.WORDNIK_API_KEY;
 
-            // Fetching a random word
+            // random word fetching
             const wordResponse = await fetch(`https://api.wordnik.com/v4/words.json/randomWord?api_key=${apiKey}`);
             const wordData = await wordResponse.json();
 
-            // Fetch its definition
+            // definition fetching
             const definitionResponse = await fetch(`https://api.wordnik.com/v4/word.json/${wordData.word}/definitions?api_key=${apiKey}`);
             const definitionData = await definitionResponse.json();
 
@@ -201,7 +214,7 @@ client.on('interactionCreate', async (interaction) => {
             const rawDefinition = definitionData[0]?.text || 'No definition available.';
             const definition = rawDefinition.replace(/<[^>]*>/g, '');
 
-            // Generate similar words
+            // Generating similar words
             const similarResponse = await fetch(`https://api.datamuse.com/words?ml=${encodeURIComponent(definition)}`);
             const similarWords = await similarResponse.json();
 
@@ -213,7 +226,7 @@ client.on('interactionCreate', async (interaction) => {
             const incorrectOptions = similarWords.slice(0, 2).map(word => word.word);
             const allOptions = [correctWord, ...incorrectOptions].sort(() => Math.random() - 0.5);
 
-            // Embed for the game
+            // embed message
             const embed = new EmbedBuilder()
                 .setColor(0x1D82B6)
                 .setTitle('🎮 Guess the Word Game')
@@ -240,7 +253,7 @@ client.on('interactionCreate', async (interaction) => {
 
             const reply = await interaction.editReply({ embeds: [embed], components: [buttons] });
 
-            // Collect interaction
+            // message component collector
             const collector = reply.createMessageComponentCollector({
                 componentType: ComponentType.Button,
                 time: 15000,
@@ -269,6 +282,79 @@ client.on('interactionCreate', async (interaction) => {
         } catch (error) {
             console.error('Error in guessword command:', error);
             await interaction.editReply({ content: '❌ Error occurred while running the game. Please try again later.' });
+        }
+    }
+
+    if (commandName === 'pronounce') {
+        const word = interaction.options.getString('word');
+
+        if (!word || word.trim() === '') {
+            return interaction.reply({ content: '❌ Please provide a valid word.', ephemeral: true });
+        }
+
+        try {
+            await interaction.deferReply();
+
+            const fetch = (await import('node-fetch')).default;
+            const apiKey = process.env.WORDNIK_API_KEY;
+
+            // Fetching audio pronunciation from Wordnik
+            const audioResponse = await fetch(`https://api.wordnik.com/v4/word.json/${word}/audio?useCanonical=true&limit=1&api_key=${apiKey}`);
+            const audioData = await audioResponse.json();
+
+            if (audioData && audioData.length > 0) {
+                const audioUrl = audioData[0].fileUrl;
+                const audioSource = audioData[0].createdBy || 'Wordnik';
+
+                // button
+                const listenButton = new ActionRowBuilder().addComponents(
+                    new ButtonBuilder()
+                        .setLabel('🔊 Listen to Pronunciation')
+                        .setStyle(ButtonStyle.Link)
+                        .setURL(audioUrl)
+                );
+
+                // embed with pronunciation information
+                const embed = new EmbedBuilder()
+                    .setColor(0x1D82B6)
+                    .setTitle(`🔊 Pronunciation for **${word}**`)
+                    .setDescription(`Click the button below to hear how "${word}" is pronounced.`)
+                    .addFields(
+                        { name: 'Audio Source', value: audioSource, inline: true }
+                    )
+                    .setFooter({ text: 'Built by Zero using Discord.js', iconURL: 'https://i.imgur.com/AfFp7pu.png' })
+                    .setTimestamp();
+
+                // embed and button reply
+                await interaction.editReply({
+                    embeds: [embed],
+                    components: [listenButton]
+                });
+            } else {
+                const pronunciationResponse = await fetch(`https://api.wordnik.com/v4/word.json/${word}/pronunciations?limit=1&api_key=${apiKey}`);
+                const pronunciationData = await pronunciationResponse.json();
+
+                if (pronunciationData && pronunciationData.length > 0) {
+                    const pronunciation = pronunciationData[0].raw || 'N/A';
+
+                    const embed = new EmbedBuilder()
+                        .setColor(0x1D82B6)
+                        .setTitle(`🔊 Pronunciation for **${word}**`)
+                        .setDescription(`Audio pronunciation is not available, but here's the phonetic pronunciation:`)
+                        .addFields(
+                            { name: 'Phonetic Pronunciation', value: pronunciation, inline: false }
+                        )
+                        .setFooter({ text: 'Built by Zero using Discord.js', iconURL: 'https://i.imgur.com/AfFp7pu.png' })
+                        .setTimestamp();
+
+                    await interaction.editReply({ embeds: [embed] });
+                } else {
+                    await interaction.editReply({ content: `❌ Sorry, no pronunciation data found for **${word}**.` });
+                }
+            }
+        } catch (error) {
+            console.error('Error fetching pronunciation:', error);
+            await interaction.editReply({ content: '❌ There was an error fetching the pronunciation. Please try again later.' });
         }
     }
     });
